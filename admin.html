@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Административная панель</title>
+    <style>
+        .product-card { border: 1px solid #ccc; margin: 10px; padding: 15px; width: 200px; }
+        #chat { position: fixed; bottom: 0; right: 0; width: 300px; border: 1px solid #ccc; background: white; }
+        #messages { height: 200px; overflow-y: scroll; padding: 10px; }
+        #messageInput { width: 70%; }
+        form { margin: 20px; padding: 20px; border: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <h1>Административная панель</h1>
+    
+    <form id="addProductForm">
+        <h2>Добавить товар</h2>
+        <input type="text" id="name" placeholder="Название" required><br>
+        <input type="number" id="price" placeholder="Цена" required><br>
+        <input type="text" id="description" placeholder="Описание"><br>
+        <input type="text" id="categories" placeholder="Категории (через запятую)"><br>
+        <button type="submit">Добавить</button>
+    </form>
+
+    <div id="products"></div>
+
+    <div id="chat">
+        <h3>Чат поддержки</h3>
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Введите сообщение">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
+
+    <script>
+        // Подключение к WebSocket как администратор
+        const socket = new WebSocket('ws://localhost:8081');
+        const messagesDiv = document.getElementById('messages');
+        
+        // При подключении сообщаем серверу, что это администратор
+        socket.onopen = function() {
+            socket.send(JSON.stringify({ type: 'admin_connect' }));
+        };
+        
+        socket.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+            messagesDiv.innerHTML += `<p><strong>${message.sender}:</strong> ${message.text}</p>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = {
+                sender: 'Администратор',
+                text: input.value
+            };
+            socket.send(JSON.stringify(message));
+            input.value = '';
+        }
+
+        // Загрузка товаров
+        fetch('http://localhost:8080/products')
+            .then(response => response.json())
+            .then(products => {
+                const productsContainer = document.getElementById('products');
+                products.forEach(product => {
+                    const productCard = document.createElement('div');
+                    productCard.classList.add('product-card');
+                    productCard.innerHTML = `
+                        <h2>${product.name}</h2>
+                        <p>Цена: ${product.price} руб.</p>
+                        <p>${product.description}</p>
+                        <button onclick="deleteProduct('${product.id}')">Удалить</button>
+                    `;
+                    productsContainer.appendChild(productCard);
+                });
+            });
+
+        // Добавление товара
+        document.getElementById('addProductForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const price = document.getElementById('price').value;
+            const description = document.getElementById('description').value;
+            const categories = document.getElementById('categories').value.split(',').map(c => c.trim());
+            
+            fetch('http://localhost:8080/products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: Date.now().toString(),
+                    name,
+                    price: parseInt(price),
+                    description,
+                    categories
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Товар добавлен');
+                    location.reload();
+                }
+            });
+        });
+
+        function deleteProduct(id) {
+            fetch(`http://localhost:8080/products/${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Товар удален');
+                    location.reload();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

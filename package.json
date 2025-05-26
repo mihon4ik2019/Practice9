@@ -1,0 +1,12 @@
+{
+  "name": "ecommerce-app",
+  "version": "1.0.0",
+  "description": "E-commerce application with admin panel",
+  "dependencies": {
+    "express": "^4.17.1",
+    "ws": "^8.2.3",
+    "cors": "^2.8.5",
+    "graphql": "^15.5.1",
+    "express-graphql": "^0.12.0"
+  }
+}

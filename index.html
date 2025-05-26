@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Каталог товаров</title>
+    <style>
+        .product-card { border: 1px solid #ccc; margin: 10px; padding: 15px; width: 200px; }
+        #chat { position: fixed; bottom: 0; right: 0; width: 300px; border: 1px solid #ccc; background: white; }
+        #messages { height: 200px; overflow-y: scroll; padding: 10px; }
+        #messageInput { width: 70%; }
+    </style>
+</head>
+<body>
+    <h1>Каталог товаров</h1>
+    <div id="products"></div>
+
+    <div id="chat">
+        <h3>Чат поддержки</h3>
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Введите сообщение">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
+
+    <script>
+        // Подключение к WebSocket
+        const socket = new WebSocket('ws://localhost:8081');
+        const messagesDiv = document.getElementById('messages');
+        
+        socket.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+            messagesDiv.innerHTML += `<p><strong>${message.sender}:</strong> ${message.text}</p>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = {
+                sender: 'Покупатель',
+                text: input.value
+            };
+            socket.send(JSON.stringify(message));
+            input.value = '';
+        }
+
+        // GraphQL запрос для получения только названий и цен товаров
+        const query = `
+            query {
+                products {
+                    name
+                    price
+                }
+            }
+        `;
+
+        fetch('http://localhost:8080/graphql', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                query
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const productsContainer = document.getElementById('products');
+            data.data.products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.classList.add('product-card');
+                productCard.innerHTML = `
+                    <h2>${product.name}</h2>
+                    <p>Цена: ${product.price} руб.</p>
+                `;
+                productsContainer.appendChild(productCard);
+            });
+        })
+        .catch(error => console.error('Error:', error));
+    </script>
+</body>
+</html>
